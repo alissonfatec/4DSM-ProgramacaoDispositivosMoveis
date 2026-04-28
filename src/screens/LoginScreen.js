@@ -1,125 +1,160 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView,
-  TouchableOpacity, KeyboardAvoidingView, Platform,
+  View, Text, TextInput, TouchableOpacity,
+  StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView, Platform,
 } from 'react-native';
-import { useAppContext } from '../context/AppContext';
-import { FormInput, PrimaryButton, AlertBanner } from '../components';
-import { useForm, useFeedback } from '../hooks';
-import { validators } from '../services/validators';
-import { colors, spacing, radius } from '../styles/theme';
+import { useAuth } from '../hooks/useAuth';
 
-// Não recebe mais `navigation` — o redirecionamento pós-login é automático:
-// quando login() seta isAuthenticated=true no contexto, o AppNavigator
-// desmonta o PublicStack e monta o PrivateStack sem nenhum navigate() manual.
-export default function LoginScreen() {
-  const { login } = useAppContext();
-  const { values, errors, setValue, validate } = useForm({ login: '', senha: '' });
-  const { alert, showError } = useFeedback();
-  const [loading, setLoading] = useState(false);
+export default function LoginScreen({ navigation }) {
+  const { login } = useAuth();
 
-  // useEffect — log de montagem da tela
-  useEffect(() => {
-    console.log('[LoginScreen] Tela de login montada.');
-  }, []);
+  const [email,     setEmail]     = useState('');
+  const [senha,     setSenha]     = useState('');
+  const [loading,   setLoading]   = useState(false);
+  const [erro,      setErro]      = useState('');
+  const [mostrarSenha, setMostrarSenha] = useState(false);
 
-  function handleLogin() {
-    const isValid = validate({
-      login: validators.required('Informe seu login ou e-mail.'),
-      senha: validators.required('Informe sua senha.'),
-    });
+  async function handleLogin() {
+    setErro('');
 
-    if (!isValid) return;
+    // Validação local
+    if (!email.trim() || !senha.trim()) {
+      setErro('Preencha e-mail e senha');
+      return;
+    }
 
     setLoading(true);
-
-    // Simula latência de autenticação (useEffect seria usado com fetch real)
-    setTimeout(() => {
-      const ok = login(values.login.trim(), values.senha);
-      if (!ok) {
-        showError('Login ou senha inválidos. Use: admin / 1234');
-      }
-      // Se ok === true, o AppNavigator detecta isAuthenticated=true
-      // e troca automaticamente para o PrivateStack.
+    try {
+      await login(email.trim(), senha);
+      // AuthContext atualiza `usuario` → RootNavigator redireciona automaticamente
+    } catch (err) {
+      const mensagem = err.response?.data?.error || 'Erro ao conectar com o servidor';
+      setErro(mensagem);
+    } finally {
       setLoading(false);
-    }, 600);
+    }
   }
 
   return (
     <KeyboardAvoidingView
-      style={styles.root}
+      style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        {/* Logo */}
-        <View style={styles.logoArea}>
-          <View style={styles.logoMark}>
-            <Text style={styles.logoIcon}>◈</Text>
-          </View>
-          <Text style={styles.appName}>App Scholar</Text>
-          <Text style={styles.appSub}>Gerenciamento Acadêmico — FATEC Jacareí</Text>
-        </View>
+      <Text style={styles.titulo}>App Scholar</Text>
+      <Text style={styles.subtitulo}>Gestão Acadêmica</Text>
 
-        {/* Card de login */}
-        <View style={styles.card}>
-          <AlertBanner message={alert.message} type={alert.type} />
+      <TextInput
+        style={styles.input}
+        placeholder="E-mail"
+        placeholderTextColor="#999"
+        value={email}
+        onChangeText={setEmail}
+        keyboardType="email-address"
+        autoCapitalize="none"
+        editable={!loading}
+      />
 
-          <FormInput
-            label="Login ou e-mail"
-            value={values.login}
-            onChangeText={v => setValue('login', v)}
-            placeholder="ra12345 ou email@fatec.sp.gov.br"
-            autoCapitalize="none"
-            keyboardType="email-address"
-            error={errors.login}
-          />
+      <View style={styles.inputSenhaWrap}>
+      <TextInput
+        style={[styles.input, styles.inputSenha]}
+        placeholder="Senha"
+        placeholderTextColor="#999"
+        value={senha}
+        onChangeText={setSenha}
+        secureTextEntry={!mostrarSenha}
+        editable={!loading}
+      />
+      <TouchableOpacity
+        style={styles.olhoBtn}
+        onPress={() => setMostrarSenha(prev => !prev)}
+      >
+        <Text>{mostrarSenha ? '👁️' : '👁️'}</Text>
+      </TouchableOpacity>
+    </View>
 
-          <FormInput
-            label="Senha"
-            value={values.senha}
-            onChangeText={v => setValue('senha', v)}
-            placeholder="••••••••"
-            secureTextEntry
-            autoCapitalize="none"
-            error={errors.senha}
-          />
+      {!!erro && <Text style={styles.erro}>{erro}</Text>}
 
-          <PrimaryButton
-            title="Entrar"
-            onPress={handleLogin}
-            loading={loading}
-            style={{ marginTop: spacing.sm }}
-          />
-        </View>
-
-        <Text style={styles.hint}>Credenciais de teste: admin / 1234</Text>
-      </ScrollView>
+      <TouchableOpacity
+        style={[styles.botao, loading && styles.botaoDesabilitado]}
+        onPress={handleLogin}
+        disabled={loading}
+      >
+        {loading
+          ? <ActivityIndicator color="#fff" />
+          : <Text style={styles.botaoTexto}>Entrar</Text>
+        }
+      </TouchableOpacity>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.background },
-  content: {
-    flexGrow: 1, justifyContent: 'center',
-    padding: spacing.lg, paddingVertical: 40,
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+    backgroundColor: '#f5f5f5',
   },
-  logoArea: { alignItems: 'center', marginBottom: 28 },
-  logoMark: {
-    width: 64, height: 64, borderRadius: radius.lg,
-    backgroundColor: colors.primary,
-    alignItems: 'center', justifyContent: 'center',
+  titulo: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    color: '#1a1a2e',
+    marginBottom: 4,
+  },
+  subtitulo: {
+    fontSize: 14,
+    textAlign: 'center',
+    color: '#666',
+    marginBottom: 40,
+  },
+  input: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 16,
+    marginBottom: 16,
+    color: '#333',
+  },
+  erro: {
+    color: '#e74c3c',
+    fontSize: 13,
     marginBottom: 12,
+    textAlign: 'center',
   },
-  logoIcon: { fontSize: 30, color: colors.white },
-  appName: { fontSize: 22, fontWeight: '700', color: colors.textPrimary },
-  appSub: { fontSize: 13, color: colors.textSecondary, marginTop: 4, textAlign: 'center' },
-  card: {
-    backgroundColor: colors.surface, borderRadius: radius.xl,
-    padding: spacing.xl, borderWidth: 0.5, borderColor: colors.border,
+  botao: {
+    backgroundColor: '#1a1a2e',
+    borderRadius: 8,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginTop: 8,
   },
-  hint: {
-    textAlign: 'center', marginTop: 16,
-    fontSize: 12, color: colors.textMuted,
+  botaoDesabilitado: {
+    backgroundColor: '#999',
+  },
+  botaoTexto: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+    inputSenhaWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    marginBottom: 16,
+  },
+  inputSenha: {
+    flex: 1,
+    borderWidth: 0,
+    marginBottom: 0,
+  },
+  olhoBtn: {
+    paddingHorizontal: 12,
   },
 });

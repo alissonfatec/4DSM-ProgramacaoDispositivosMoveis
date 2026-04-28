@@ -1,159 +1,127 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
-  View, Text, ScrollView, StyleSheet,
-  SafeAreaView, TouchableOpacity,
+  View, Text, TextInput, TouchableOpacity,
+  FlatList, StyleSheet, ActivityIndicator, Alert,
 } from 'react-native';
-import { useAppContext } from '../context/AppContext';
-import { useBoletim } from '../hooks';
-import { Badge, SelectInput } from '../components';
-import { colors, spacing, radius } from '../styles/theme';
+import { boletimService } from '../services';
 
-export default function BoletimScreen({ navigation }) {
-  const { alunos, getBoletim } = useAppContext();
-  const [alunoSelecionado, setAlunoSelecionado] = useState(alunos[0]?.id || '');
-  const [notasRaw, setNotasRaw] = useState([]);
+function CardNota({ item }) {
+  const aprovado = item.situacao === 'Aprovado';
+  return (
+    <View style={styles.card}>
+      <Text style={styles.cardDisciplina}>{item.disciplina}</Text>
+      <Text style={styles.cardProfessor}>Prof. {item.professor || '—'}</Text>
+      <View style={styles.cardNotas}>
+        <View style={styles.notaItem}>
+          <Text style={styles.notaLabel}>Nota 1</Text>
+          <Text style={styles.notaValor}>{item.nota1}</Text>
+        </View>
+        <View style={styles.notaItem}>
+          <Text style={styles.notaLabel}>Nota 2</Text>
+          <Text style={styles.notaValor}>{item.nota2}</Text>
+        </View>
+        <View style={styles.notaItem}>
+          <Text style={styles.notaLabel}>Média</Text>
+          <Text style={[styles.notaValor, styles.mediaValor]}>{item.media}</Text>
+        </View>
+        <View style={[styles.badge, aprovado ? styles.badgeAprovado : styles.badgeReprovado]}>
+          <Text style={styles.badgeTexto}>{item.situacao}</Text>
+        </View>
+      </View>
+    </View>
+  );
+}
 
-  const { notasComCalculo, aprovadas, reprovadas, recuperacao } = useBoletim(notasRaw);
+export default function BoletimScreen() {
+  const [matricula, setMatricula] = useState('');
+  const [boletim,   setBoletim]   = useState(null);
+  const [loading,   setLoading]   = useState(false);
 
-  const alunoOptions = [
-    { value: '', label: 'Selecione o aluno' },
-    ...alunos.map(a => ({ value: a.id, label: `${a.nome} — ${a.matricula}` })),
-  ];
-
-  // useEffect — carrega boletim quando o aluno muda
-  useEffect(() => {
-    if (!alunoSelecionado) { setNotasRaw([]); return; }
-    console.log('[BoletimScreen] Carregando boletim para alunoId:', alunoSelecionado);
-    const notas = getBoletim(alunoSelecionado);
-    setNotasRaw(notas);
-  }, [alunoSelecionado]);
-
-  const aluno = alunos.find(a => a.id === alunoSelecionado);
+  async function handleBuscar() {
+    if (!matricula.trim()) {
+      Alert.alert('Atenção', 'Informe a matrícula');
+      return;
+    }
+    setLoading(true);
+    setBoletim(null);
+    try {
+      const response = await boletimService.consultar(matricula.trim());
+      setBoletim(response.data);
+    } catch (err) {
+      const mensagem = err.response?.data?.error || 'Erro ao buscar boletim';
+      Alert.alert('Erro', mensagem);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
-    <SafeAreaView style={styles.root}>
-      {/* Filtro */}
-      <View style={styles.filterBar}>
-        <SelectInput
-          value={alunoSelecionado}
-          onValueChange={setAlunoSelecionado}
-          options={alunoOptions}
+    <View style={styles.container}>
+      <Text style={styles.titulo}>Consulta de Boletim</Text>
+
+      <View style={styles.busca}>
+        <TextInput
+          style={styles.input}
+          placeholder="Matrícula do aluno"
+          value={matricula}
+          onChangeText={setMatricula}
+          keyboardType="default"
+          autoCapitalize="none"
         />
+        <TouchableOpacity style={styles.botaoBusca} onPress={handleBuscar} disabled={loading}>
+          {loading
+            ? <ActivityIndicator color="#fff" size="small" />
+            : <Text style={styles.botaoTexto}>Buscar</Text>
+          }
+        </TouchableOpacity>
       </View>
 
-      {aluno && (
-        <View style={styles.alunoInfo}>
-          <Text style={styles.alunoNome}>{aluno.nome}</Text>
-          <Text style={styles.alunoMeta}>{aluno.matricula} · {aluno.curso} · 2025/1</Text>
-        </View>
+      {boletim && (
+        <>
+          <View style={styles.infoAluno}>
+            <Text style={styles.nomeAluno}>{boletim.aluno}</Text>
+            <Text style={styles.infoTexto}>{boletim.curso} · {boletim.matricula}</Text>
+          </View>
+
+          <FlatList
+            data={boletim.disciplinas}
+            keyExtractor={(_, i) => String(i)}
+            renderItem={({ item }) => <CardNota item={item} />}
+            ListEmptyComponent={
+              <Text style={styles.vazio}>Nenhuma nota cadastrada</Text>
+            }
+            contentContainerStyle={{ paddingBottom: 40 }}
+          />
+        </>
       )}
-
-      <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
-        {/* Resumo */}
-        {notasComCalculo.length > 0 && (
-          <View style={styles.summaryRow}>
-            <View style={[styles.summaryCard, { borderColor: colors.successMid }]}>
-              <Text style={[styles.summaryNum, { color: colors.success }]}>{aprovadas}</Text>
-              <Text style={styles.summaryLabel}>Aprovadas</Text>
-            </View>
-            <View style={[styles.summaryCard, { borderColor: colors.warningMid }]}>
-              <Text style={[styles.summaryNum, { color: colors.warning }]}>{recuperacao}</Text>
-              <Text style={styles.summaryLabel}>Recuperação</Text>
-            </View>
-            <View style={[styles.summaryCard, { borderColor: colors.dangerMid }]}>
-              <Text style={[styles.summaryNum, { color: colors.danger }]}>{reprovadas}</Text>
-              <Text style={styles.summaryLabel}>Reprovadas</Text>
-            </View>
-          </View>
-        )}
-
-        {/* Tabela */}
-        {notasComCalculo.length > 0 ? (
-          <View style={styles.tableCard}>
-            {/* Header */}
-            <View style={[styles.tableRow, styles.tableHeader]}>
-              <Text style={[styles.cellDisc, styles.headerText]}>Disciplina</Text>
-              <Text style={[styles.cellNum, styles.headerText]}>N1</Text>
-              <Text style={[styles.cellNum, styles.headerText]}>N2</Text>
-              <Text style={[styles.cellNum, styles.headerText]}>Méd</Text>
-              <Text style={[styles.cellSit, styles.headerText]}>Sit.</Text>
-            </View>
-
-            {notasComCalculo.map((item, idx) => (
-              <View
-                key={idx}
-                style={[
-                  styles.tableRow,
-                  idx % 2 === 0 && { backgroundColor: colors.background },
-                  idx < notasComCalculo.length - 1 && styles.tableRowBorder,
-                ]}
-              >
-                <Text style={[styles.cellDisc, styles.cellText]} numberOfLines={2}>
-                  {item.disciplina}
-                </Text>
-                <Text style={[styles.cellNum, styles.cellText]}>{item.nota1.toFixed(1)}</Text>
-                <Text style={[styles.cellNum, styles.cellText]}>{item.nota2.toFixed(1)}</Text>
-                <Text style={[styles.cellNum, styles.cellText, { fontWeight: '600' }]}>
-                  {item.media.toFixed(1)}
-                </Text>
-                <View style={styles.cellSit}>
-                  <Badge label={item.situacao.label} type={item.situacao.type} />
-                </View>
-              </View>
-            ))}
-          </View>
-        ) : (
-          <View style={styles.empty}>
-            <Text style={styles.emptyText}>Selecione um aluno para ver o boletim.</Text>
-          </View>
-        )}
-      </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.background },
-  filterBar: {
-    padding: spacing.md,
-    borderBottomWidth: 0.5, borderBottomColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  alunoInfo: {
-    padding: spacing.md, paddingBottom: spacing.sm,
-    backgroundColor: colors.surface,
-    borderBottomWidth: 0.5, borderBottomColor: colors.border,
-  },
-  alunoNome: { fontSize: 15, fontWeight: '600', color: colors.textPrimary },
-  alunoMeta: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
-  body: { padding: spacing.md, paddingBottom: 32 },
-  summaryRow: { flexDirection: 'row', gap: 8, marginBottom: spacing.md },
-  summaryCard: {
-    flex: 1, backgroundColor: colors.surface, borderRadius: radius.md,
-    padding: spacing.md, alignItems: 'center',
-    borderWidth: 1,
-  },
-  summaryNum: { fontSize: 22, fontWeight: '700' },
-  summaryLabel: { fontSize: 11, color: colors.textSecondary, marginTop: 2 },
-  tableCard: {
-    backgroundColor: colors.surface, borderRadius: radius.lg,
-    borderWidth: 0.5, borderColor: colors.border, overflow: 'hidden',
-  },
-  tableRow: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingVertical: 10, paddingHorizontal: spacing.md,
-  },
-  tableRowBorder: { borderBottomWidth: 0.5, borderBottomColor: colors.border },
-  tableHeader: { backgroundColor: colors.background },
-  headerText: { fontSize: 11, fontWeight: '700', color: colors.textSecondary, textTransform: 'uppercase' },
-  cellText: { fontSize: 13, color: colors.textPrimary },
-  cellDisc: { flex: 3, paddingRight: 8 },
-  cellNum: { flex: 1, textAlign: 'center' },
-  cellSit: { flex: 2, alignItems: 'center' },
-  empty: {
-    padding: 40, alignItems: 'center',
-    backgroundColor: colors.surface, borderRadius: radius.lg,
-    borderWidth: 0.5, borderColor: colors.border,
-  },
-  emptyText: { fontSize: 14, color: colors.textSecondary, textAlign: 'center' },
+  container:       { flex: 1, padding: 20, backgroundColor: '#f5f5f5' },
+  titulo:          { fontSize: 22, fontWeight: 'bold', marginBottom: 20, color: '#1a1a2e' },
+  busca:           { flexDirection: 'row', marginBottom: 20, gap: 8 },
+  input:           { flex: 1, backgroundColor: '#fff', borderWidth: 1, borderColor: '#ddd',
+                     borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15 },
+  botaoBusca:      { backgroundColor: '#1a1a2e', borderRadius: 8, paddingHorizontal: 16,
+                     justifyContent: 'center', alignItems: 'center', minWidth: 70 },
+  botaoTexto:      { color: '#fff', fontWeight: 'bold' },
+  infoAluno:       { backgroundColor: '#1a1a2e', borderRadius: 10, padding: 16, marginBottom: 16 },
+  nomeAluno:       { color: '#fff', fontSize: 18, fontWeight: 'bold' },
+  infoTexto:       { color: '#aaa', fontSize: 13, marginTop: 4 },
+  card:            { backgroundColor: '#fff', borderRadius: 10, padding: 16, marginBottom: 12,
+                     elevation: 2, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 4 },
+  cardDisciplina:  { fontSize: 15, fontWeight: 'bold', color: '#1a1a2e', marginBottom: 2 },
+  cardProfessor:   { fontSize: 12, color: '#888', marginBottom: 10 },
+  cardNotas:       { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  notaItem:        { alignItems: 'center' },
+  notaLabel:       { fontSize: 11, color: '#999' },
+  notaValor:       { fontSize: 15, fontWeight: '600', color: '#333' },
+  mediaValor:      { color: '#1a1a2e', fontSize: 17 },
+  badge:           { marginLeft: 'auto', borderRadius: 6, paddingHorizontal: 10, paddingVertical: 4 },
+  badgeAprovado:   { backgroundColor: '#d4edda' },
+  badgeReprovado:  { backgroundColor: '#f8d7da' },
+  badgeTexto:      { fontSize: 12, fontWeight: 'bold', color: '#333' },
+  vazio:           { textAlign: 'center', color: '#999', marginTop: 40 },
 });

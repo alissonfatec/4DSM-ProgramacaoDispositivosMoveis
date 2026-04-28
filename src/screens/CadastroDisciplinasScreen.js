@@ -1,145 +1,166 @@
-import React, { useEffect, useState } from 'react';
-import { View, ScrollView, StyleSheet, SafeAreaView } from 'react-native';
-import { useAppContext } from '../context/AppContext';
+import React, { useState, useEffect } from 'react';
 import {
-  FormInput, SelectInput, PrimaryButton, SecondaryButton,
-  AlertBanner, SectionTitle,
-} from '../components';
-import { useForm, useFeedback } from '../hooks';
-import { validators } from '../services/validators';
-import { colors, spacing } from '../styles/theme';
+  View, Text, TextInput, TouchableOpacity,
+  ScrollView, StyleSheet, ActivityIndicator, Alert,
+} from 'react-native';
+import { Picker } from '@react-native-picker/picker';
+import { disciplinasService, professoresService } from '../services';
 
-const CARGAS = [
-  { value: '', label: 'Carga horária' },
-  { value: '40', label: '40 horas' },
-  { value: '60', label: '60 horas' },
-  { value: '80', label: '80 horas' },
-  { value: '100', label: '100 horas' },
-  { value: '120', label: '120 horas' },
-];
+const SEMESTRES = ['1º Semestre', '2º Semestre', '3º Semestre',
+                   '4º Semestre', '5º Semestre', '6º Semestre'];
 
-const SEMESTRES = [
-  { value: '', label: 'Semestre' },
-  { value: '1º', label: '1º Semestre' },
-  { value: '2º', label: '2º Semestre' },
-  { value: '3º', label: '3º Semestre' },
-  { value: '4º', label: '4º Semestre' },
-  { value: '5º', label: '5º Semestre' },
-  { value: '6º', label: '6º Semestre' },
-];
-
-const CURSOS = [
-  { value: '', label: 'Selecione o curso' },
-  { value: 'DSM', label: 'DSM' },
-  { value: 'ADS', label: 'ADS' },
-  { value: 'GTI', label: 'GTI' },
-  { value: 'SI', label: 'SI' },
-];
-
-export default function CadastroDisciplinasScreen({ navigation }) {
-  const { professores, adicionarDisciplina } = useAppContext();
-  const { alert, showSuccess, showError } = useFeedback();
-  const { values, errors, setValue, validate, reset } = useForm({
-    nome: '', cargaHoraria: '', professor: '', curso: '', semestre: '',
+export default function CadastroDisciplinaScreen({ navigation }) {
+  const [form, setForm] = useState({
+    nome:          '',
+    carga_horaria: '',
+    professor_id:  '',
+    curso:         '',
+    semestre:      '',
   });
 
-  // useState — opções de professores montadas dinamicamente
-  const [professorOptions, setProfessorOptions] = useState([
-    { value: '', label: 'Selecione o professor' },
-  ]);
+  const [professores, setProfessores] = useState([]);
+  const [loadingProf, setLoadingProf] = useState(true);
+  const [erros,       setErros]       = useState({});
+  const [loading,     setLoading]     = useState(false);
 
-  // useEffect — carrega lista de professores do contexto ao montar
+  // Carrega professores para o Picker
   useEffect(() => {
-    console.log('[CadastroDisciplinasScreen] Carregando professores do contexto...');
-    const opts = [
-      { value: '', label: 'Selecione o professor' },
-      ...professores.map(p => ({ value: p.nome, label: p.nome })),
-    ];
-    setProfessorOptions(opts);
-  }, [professores]);
+    professoresService.listar()
+      .then((res) => setProfessores(res.data))
+      .catch(() => Alert.alert('Aviso', 'Não foi possível carregar os professores'))
+      .finally(() => setLoadingProf(false));
+  }, []);
 
-  function handleSalvar() {
-    const isValid = validate({
-      nome: validators.minLength(2, 'Informe o nome da disciplina.'),
-      cargaHoraria: validators.select('Selecione a carga horária.'),
-      semestre: validators.select('Selecione o semestre.'),
-      professor: validators.select('Selecione o professor responsável.'),
-      curso: validators.select('Selecione o curso.'),
-    });
+  function atualizar(campo, valor) {
+    setForm(prev => ({ ...prev, [campo]: valor }));
+    setErros(prev => ({ ...prev, [campo]: '' }));
+  }
 
-    if (!isValid) {
-      showError('Corrija os campos obrigatórios.');
-      return;
+  function validar() {
+    const novosErros = {};
+    if (!form.nome.trim())          novosErros.nome          = 'Nome obrigatório';
+    if (!form.carga_horaria.trim()) novosErros.carga_horaria = 'Carga horária obrigatória';
+    else if (isNaN(Number(form.carga_horaria))) {
+      novosErros.carga_horaria = 'Informe um número válido';
     }
+    setErros(novosErros);
+    return Object.keys(novosErros).length === 0;
+  }
 
-    adicionarDisciplina({ ...values });
-    showSuccess('Disciplina cadastrada com sucesso!');
-    reset();
+  async function handleSalvar() {
+    if (!validar()) return;
+    setLoading(true);
+    try {
+      await disciplinasService.criar({
+        ...form,
+        carga_horaria: Number(form.carga_horaria),
+        professor_id:  form.professor_id || null,
+      });
+      Alert.alert('Sucesso', 'Disciplina cadastrada com sucesso!', [
+        { text: 'OK', onPress: () => navigation.goBack() },
+      ]);
+    } catch (err) {
+      const mensagem = err.response?.data?.error || 'Erro ao cadastrar disciplina';
+      Alert.alert('Erro', mensagem);
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
-    <SafeAreaView style={styles.root}>
-      <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
-        <AlertBanner message={alert.message} type={alert.type} />
+    <ScrollView contentContainerStyle={styles.container}>
+      <Text style={styles.titulo}>Cadastro de Disciplina</Text>
 
-        <SectionTitle title="Dados da disciplina" />
+      {/* Nome */}
+      <Text style={styles.label}>Nome da disciplina *</Text>
+      <TextInput
+        style={[styles.input, erros.nome && styles.inputErro]}
+        value={form.nome}
+        onChangeText={(v) => atualizar('nome', v)}
+        autoCapitalize="words"
+        placeholder="Ex: Programação Mobile"
+      />
+      {!!erros.nome && <Text style={styles.erro}>{erros.nome}</Text>}
 
-        <FormInput
-          label="Nome da disciplina *"
-          value={values.nome}
-          onChangeText={v => setValue('nome', v)}
-          placeholder="Programação para Dispositivos Móveis I"
-          error={errors.nome}
-        />
+      {/* Carga horária */}
+      <Text style={styles.label}>Carga horária (horas) *</Text>
+      <TextInput
+        style={[styles.input, erros.carga_horaria && styles.inputErro]}
+        value={form.carga_horaria}
+        onChangeText={(v) => atualizar('carga_horaria', v)}
+        keyboardType="numeric"
+        placeholder="Ex: 80"
+      />
+      {!!erros.carga_horaria && <Text style={styles.erro}>{erros.carga_horaria}</Text>}
 
-        <View style={styles.row}>
-          <View style={{ flex: 1, marginRight: 8 }}>
-            <SelectInput
-              label="Carga horária *"
-              value={values.cargaHoraria}
-              onValueChange={v => setValue('cargaHoraria', v)}
-              options={CARGAS}
-              error={errors.cargaHoraria}
-            />
+      {/* Professor responsável vindo do banco */}
+      <Text style={styles.label}>Professor responsável</Text>
+      {loadingProf
+        ? <ActivityIndicator style={{ marginVertical: 10 }} />
+        : (
+          <View style={styles.picker}>
+            <Picker
+              selectedValue={form.professor_id}
+              onValueChange={(v) => atualizar('professor_id', v)}
+            >
+              <Picker.Item label="Selecione..." value="" />
+              {professores.map((p) => (
+                <Picker.Item key={p.id} label={`${p.nome} — ${p.titulacao || 'sem titulação'}`} value={String(p.id)} />
+              ))}
+            </Picker>
           </View>
-          <View style={{ flex: 1 }}>
-            <SelectInput
-              label="Semestre *"
-              value={values.semestre}
-              onValueChange={v => setValue('semestre', v)}
-              options={SEMESTRES}
-              error={errors.semestre}
-            />
-          </View>
-        </View>
+        )
+      }
 
-        <SelectInput
-          label="Professor responsável *"
-          value={values.professor}
-          onValueChange={v => setValue('professor', v)}
-          options={professorOptions}
-          error={errors.professor}
-        />
+      {/* Curso */}
+      <Text style={styles.label}>Curso</Text>
+      <TextInput
+        style={styles.input}
+        value={form.curso}
+        onChangeText={(v) => atualizar('curso', v)}
+        autoCapitalize="characters"
+        placeholder="Ex: DSM"
+      />
 
-        <SelectInput
-          label="Curso *"
-          value={values.curso}
-          onValueChange={v => setValue('curso', v)}
-          options={CURSOS}
-          error={errors.curso}
-        />
+      {/* Semestre */}
+      <Text style={styles.label}>Semestre</Text>
+      <View style={styles.picker}>
+        <Picker
+          selectedValue={form.semestre}
+          onValueChange={(v) => atualizar('semestre', v)}
+        >
+          <Picker.Item label="Selecione..." value="" />
+          {SEMESTRES.map((s) => (
+            <Picker.Item key={s} label={s} value={s} />
+          ))}
+        </Picker>
+      </View>
 
-        <View style={{ marginTop: spacing.xl, gap: 10 }}>
-          <PrimaryButton title="Salvar disciplina" onPress={handleSalvar} />
-          <SecondaryButton title="Limpar formulário" onPress={reset} />
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+      <TouchableOpacity
+        style={[styles.botao, loading && styles.botaoDesabilitado]}
+        onPress={handleSalvar}
+        disabled={loading}
+      >
+        {loading
+          ? <ActivityIndicator color="#fff" />
+          : <Text style={styles.botaoTexto}>Salvar Disciplina</Text>
+        }
+      </TouchableOpacity>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.background },
-  body: { padding: spacing.lg, paddingBottom: 40 },
-  row: { flexDirection: 'row', alignItems: 'flex-start' },
+  container:         { padding: 20, paddingBottom: 40, backgroundColor: '#f5f5f5' },
+  titulo:            { fontSize: 22, fontWeight: 'bold', marginBottom: 20, color: '#1a1a2e' },
+  label:             { fontSize: 13, color: '#555', marginBottom: 4, marginTop: 12 },
+  input:             { backgroundColor: '#fff', borderWidth: 1, borderColor: '#ddd',
+                       borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15 },
+  inputErro:         { borderColor: '#e74c3c' },
+  erro:              { color: '#e74c3c', fontSize: 12, marginTop: 2 },
+  picker:            { backgroundColor: '#fff', borderWidth: 1, borderColor: '#ddd', borderRadius: 8 },
+  botao:             { backgroundColor: '#1a1a2e', borderRadius: 8, paddingVertical: 14,
+                       alignItems: 'center', marginTop: 28 },
+  botaoDesabilitado: { backgroundColor: '#999' },
+  botaoTexto:        { color: '#fff', fontSize: 16, fontWeight: 'bold' },
 });

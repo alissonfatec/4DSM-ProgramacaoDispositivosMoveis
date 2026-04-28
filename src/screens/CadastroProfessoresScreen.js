@@ -1,117 +1,145 @@
-import React, { useEffect } from 'react';
-import { View, ScrollView, StyleSheet, SafeAreaView } from 'react-native';
-import { useAppContext } from '../context/AppContext';
+import React, { useState } from 'react';
 import {
-  FormInput, SelectInput, PrimaryButton, SecondaryButton,
-  AlertBanner, SectionTitle,
-} from '../components';
-import { useForm, useFeedback } from '../hooks';
-import { validators } from '../services/validators';
-import { colors, spacing } from '../styles/theme';
+  View, Text, TextInput, TouchableOpacity,
+  ScrollView, StyleSheet, ActivityIndicator, Alert,
+} from 'react-native';
+import { Picker } from '@react-native-picker/picker';
+import { professoresService } from '../services';
 
-const TITULACOES = [
-  { value: '', label: 'Selecione a titulação' },
-  { value: 'Especialista', label: 'Especialista' },
-  { value: 'Mestre (MSc)', label: 'Mestre (MSc)' },
-  { value: 'Doutor (PhD)', label: 'Doutor (PhD)' },
-  { value: 'Pós-doutor', label: 'Pós-doutor' },
-];
+const TITULACOES = ['Graduado', 'Especialista', 'Mestre', 'Doutor', 'Pós-Doutor'];
 
-const TEMPOS = [
-  { value: '', label: 'Tempo de docência' },
-  { value: 'Menos de 1 ano', label: 'Menos de 1 ano' },
-  { value: '1 a 3 anos', label: '1 a 3 anos' },
-  { value: '4 a 8 anos', label: '4 a 8 anos' },
-  { value: '9 a 15 anos', label: '9 a 15 anos' },
-  { value: 'Mais de 15 anos', label: 'Mais de 15 anos' },
-];
-
-export default function CadastroProfessoresScreen({ navigation }) {
-  const { adicionarProfessor } = useAppContext();
-  const { alert, showSuccess, showError } = useFeedback();
-  const { values, errors, setValue, validate, reset } = useForm({
-    nome: '', titulacao: '', area: '', tempo: '', email: '',
+export default function CadastroProfessorScreen({ navigation }) {
+  const [form, setForm] = useState({
+    nome:           '',
+    titulacao:      '',
+    area:           '',
+    tempo_docencia: '',
+    email:          '',
   });
 
-  // useEffect — log de montagem
-  useEffect(() => {
-    console.log('[CadastroProfessoresScreen] Tela montada.');
-  }, []);
+  const [erros,   setErros]   = useState({});
+  const [loading, setLoading] = useState(false);
 
-  function handleSalvar() {
-    const isValid = validate({
-      nome: validators.minLength(2, 'Informe o nome completo.'),
-      titulacao: validators.select('Selecione a titulação.'),
-      area: validators.minLength(2, 'Informe a área de atuação.'),
-      tempo: validators.select('Selecione o tempo de docência.'),
-      email: validators.email,
-    });
+  function atualizar(campo, valor) {
+    setForm(prev => ({ ...prev, [campo]: valor }));
+    setErros(prev => ({ ...prev, [campo]: '' }));
+  }
 
-    if (!isValid) {
-      showError('Corrija os campos obrigatórios.');
-      return;
+  function validar() {
+    const novosErros = {};
+    if (!form.nome.trim())  novosErros.nome  = 'Nome obrigatório';
+    if (!form.email.trim()) novosErros.email = 'E-mail obrigatório';
+    if (form.tempo_docencia && isNaN(Number(form.tempo_docencia))) {
+      novosErros.tempo_docencia = 'Informe um número válido';
     }
+    setErros(novosErros);
+    return Object.keys(novosErros).length === 0;
+  }
 
-    adicionarProfessor({ ...values });
-    showSuccess('Professor cadastrado com sucesso!');
-    reset();
+  async function handleSalvar() {
+    if (!validar()) return;
+    setLoading(true);
+    try {
+      await professoresService.criar({
+        ...form,
+        tempo_docencia: form.tempo_docencia ? Number(form.tempo_docencia) : null,
+      });
+      Alert.alert('Sucesso', 'Professor cadastrado com sucesso!', [
+        { text: 'OK', onPress: () => navigation.goBack() },
+      ]);
+    } catch (err) {
+      const mensagem = err.response?.data?.error || 'Erro ao cadastrar professor';
+      Alert.alert('Erro', mensagem);
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
-    <SafeAreaView style={styles.root}>
-      <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
-        <AlertBanner message={alert.message} type={alert.type} />
+    <ScrollView contentContainerStyle={styles.container}>
+      <Text style={styles.titulo}>Cadastro de Professor</Text>
 
-        <SectionTitle title="Dados do professor" />
+      {/* Nome */}
+      <Text style={styles.label}>Nome completo *</Text>
+      <TextInput
+        style={[styles.input, erros.nome && styles.inputErro]}
+        value={form.nome}
+        onChangeText={(v) => atualizar('nome', v)}
+        autoCapitalize="words"
+      />
+      {!!erros.nome && <Text style={styles.erro}>{erros.nome}</Text>}
 
-        <FormInput
-          label="Nome completo *"
-          value={values.nome}
-          onChangeText={v => setValue('nome', v)}
-          placeholder="Prof. Dr. Carlos Mendes"
-          error={errors.nome}
-        />
-        <SelectInput
-          label="Titulação *"
-          value={values.titulacao}
-          onValueChange={v => setValue('titulacao', v)}
-          options={TITULACOES}
-          error={errors.titulacao}
-        />
-        <FormInput
-          label="Área de atuação *"
-          value={values.area}
-          onChangeText={v => setValue('area', v)}
-          placeholder="Engenharia de Software, Banco de Dados…"
-          error={errors.area}
-        />
-        <SelectInput
-          label="Tempo de docência *"
-          value={values.tempo}
-          onValueChange={v => setValue('tempo', v)}
-          options={TEMPOS}
-          error={errors.tempo}
-        />
-        <FormInput
-          label="E-mail *"
-          value={values.email}
-          onChangeText={v => setValue('email', v)}
-          placeholder="professor@fatec.sp.gov.br"
-          keyboardType="email-address"
-          autoCapitalize="none"
-          error={errors.email}
-        />
+      {/* Titulação */}
+      <Text style={styles.label}>Titulação</Text>
+      <View style={styles.picker}>
+        <Picker
+          selectedValue={form.titulacao}
+          onValueChange={(v) => atualizar('titulacao', v)}
+        >
+          <Picker.Item label="Selecione..." value="" />
+          {TITULACOES.map((t) => (
+            <Picker.Item key={t} label={t} value={t} />
+          ))}
+        </Picker>
+      </View>
 
-        <View style={{ marginTop: spacing.xl, gap: 10 }}>
-          <PrimaryButton title="Salvar professor" onPress={handleSalvar} />
-          <SecondaryButton title="Limpar formulário" onPress={reset} />
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+      {/* Área de atuação */}
+      <Text style={styles.label}>Área de atuação</Text>
+      <TextInput
+        style={styles.input}
+        value={form.area}
+        onChangeText={(v) => atualizar('area', v)}
+        autoCapitalize="sentences"
+        placeholder="Ex: Desenvolvimento Mobile"
+      />
+
+      {/* Tempo de docência */}
+      <Text style={styles.label}>Tempo de docência (anos)</Text>
+      <TextInput
+        style={[styles.input, erros.tempo_docencia && styles.inputErro]}
+        value={form.tempo_docencia}
+        onChangeText={(v) => atualizar('tempo_docencia', v)}
+        keyboardType="numeric"
+        placeholder="Ex: 5"
+      />
+      {!!erros.tempo_docencia && <Text style={styles.erro}>{erros.tempo_docencia}</Text>}
+
+      {/* Email */}
+      <Text style={styles.label}>E-mail *</Text>
+      <TextInput
+        style={[styles.input, erros.email && styles.inputErro]}
+        value={form.email}
+        onChangeText={(v) => atualizar('email', v)}
+        keyboardType="email-address"
+        autoCapitalize="none"
+      />
+      {!!erros.email && <Text style={styles.erro}>{erros.email}</Text>}
+
+      <TouchableOpacity
+        style={[styles.botao, loading && styles.botaoDesabilitado]}
+        onPress={handleSalvar}
+        disabled={loading}
+      >
+        {loading
+          ? <ActivityIndicator color="#fff" />
+          : <Text style={styles.botaoTexto}>Salvar Professor</Text>
+        }
+      </TouchableOpacity>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.background },
-  body: { padding: spacing.lg, paddingBottom: 40 },
+  container:         { padding: 20, paddingBottom: 40, backgroundColor: '#f5f5f5' },
+  titulo:            { fontSize: 22, fontWeight: 'bold', marginBottom: 20, color: '#1a1a2e' },
+  label:             { fontSize: 13, color: '#555', marginBottom: 4, marginTop: 12 },
+  input:             { backgroundColor: '#fff', borderWidth: 1, borderColor: '#ddd',
+                       borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15 },
+  inputErro:         { borderColor: '#e74c3c' },
+  erro:              { color: '#e74c3c', fontSize: 12, marginTop: 2 },
+  picker:            { backgroundColor: '#fff', borderWidth: 1, borderColor: '#ddd', borderRadius: 8 },
+  botao:             { backgroundColor: '#1a1a2e', borderRadius: 8, paddingVertical: 14,
+                       alignItems: 'center', marginTop: 28 },
+  botaoDesabilitado: { backgroundColor: '#999' },
+  botaoTexto:        { color: '#fff', fontSize: 16, fontWeight: 'bold' },
 });
