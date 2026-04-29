@@ -9,17 +9,17 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
-import { alunosService } from "../services";
+import { professoresService } from "../services";
 import { colors, spacing, radius } from "../styles/theme";
 import { useFetch } from "../hooks/useFetch";
 
-export default function AlunosListScreen({ navigation }) {
+export default function ProfessoresListScreen({ navigation }) {
   const {
-    data: alunos,
+    data: professores,
     loading,
     error,
     execute,
-  } = useFetch(() => alunosService.listar());
+  } = useFetch(() => professoresService.listar());
 
   useFocusEffect(
     useCallback(() => {
@@ -54,34 +54,36 @@ export default function AlunosListScreen({ navigation }) {
     <SafeAreaView style={styles.safeArea} edges={["bottom"]}>
       <View style={styles.container}>
         <FlatList
-          data={alunos}
+          data={professores}
           keyExtractor={(item) => String(item.id)}
           contentContainerStyle={styles.lista}
           ListEmptyComponent={
-            <Text style={styles.vazio}>Nenhum aluno cadastrado</Text>
+            <Text style={styles.vazio}>Nenhum professor cadastrado</Text>
           }
           renderItem={({ item }) => (
             <View style={styles.card}>
               <View style={styles.cardHeader}>
                 <Text style={styles.nome}>{item.nome}</Text>
-                <Text style={styles.matricula}>{item.matricula}</Text>
+                {item.titulacao && (
+                  <Text style={styles.badge}>{item.titulacao}</Text>
+                )}
               </View>
-              <Text style={styles.info}>{item.curso}</Text>
-              <Text style={styles.info}>{item.email}</Text>
-              {item.cidade && item.estado && (
+              {item.area && <Text style={styles.info}>📚 {item.area}</Text>}
+              {item.tempo_docencia && (
                 <Text style={styles.info}>
-                  {item.cidade} — {item.estado}
+                  🕐 {item.tempo_docencia} anos de docência
                 </Text>
               )}
+              <Text style={styles.info}>✉️ {item.email}</Text>
             </View>
           )}
         />
 
         <TouchableOpacity
           style={styles.fab}
-          onPress={() => navigation.navigate("CadastroAlunos")}
+          onPress={() => navigation.navigate("CadastroProfessores")}
         >
-          <Text style={styles.fabTexto}>+ Novo Aluno</Text>
+          <Text style={styles.fabTexto}>+ Novo Professor</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -110,11 +112,20 @@ const styles = StyleSheet.create({
   cardHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 6,
   },
   nome: { fontSize: 15, fontWeight: "600", color: colors.textPrimary, flex: 1 },
-  matricula: { fontSize: 12, color: colors.primary, fontWeight: "600" },
-  info: { fontSize: 13, color: colors.textSecondary, marginTop: 2 },
+  badge: {
+    fontSize: 11,
+    color: colors.primary,
+    fontWeight: "600",
+    backgroundColor: colors.primaryLight,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: radius.full,
+  },
+  info: { fontSize: 13, color: colors.textSecondary, marginTop: 4 },
   vazio: { textAlign: "center", color: colors.textMuted, marginTop: 40 },
   erro: { color: colors.danger, marginBottom: 12 },
   botao: {
@@ -129,7 +140,7 @@ const styles = StyleSheet.create({
     bottom: 16,
     right: 24,
     left: 24,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.success,
     borderRadius: radius.md,
     paddingVertical: 14,
     alignItems: "center",

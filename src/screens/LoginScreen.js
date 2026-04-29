@@ -1,34 +1,39 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
-  View, Text, TextInput, TouchableOpacity,
-  StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView, Platform,
-} from 'react-native';
-import { useAuth } from '../hooks/useAuth';
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  Image,
+  StyleSheet,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+} from "react-native";
+import { useAuth } from "../hooks/useAuth";
 
-export default function LoginScreen({ navigation }) {
+export default function LoginScreen() {
   const { login } = useAuth();
 
-  const [email,     setEmail]     = useState('');
-  const [senha,     setSenha]     = useState('');
-  const [loading,   setLoading]   = useState(false);
-  const [erro,      setErro]      = useState('');
+  const [email, setEmail] = useState("");
+  const [senha, setSenha] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [erro, setErro] = useState("");
   const [mostrarSenha, setMostrarSenha] = useState(false);
 
   async function handleLogin() {
-    setErro('');
-
-    // Validação local
+    setErro("");
     if (!email.trim() || !senha.trim()) {
-      setErro('Preencha e-mail e senha');
+      setErro("Preencha e-mail e senha");
       return;
     }
-
     setLoading(true);
     try {
       await login(email.trim(), senha);
-      // AuthContext atualiza `usuario` → RootNavigator redireciona automaticamente
     } catch (err) {
-      const mensagem = err.response?.data?.error || 'Erro ao conectar com o servidor';
+      const mensagem =
+        err.response?.data?.error || "Erro ao conectar com o servidor";
       setErro(mensagem);
     } finally {
       setLoading(false);
@@ -37,115 +42,120 @@ export default function LoginScreen({ navigation }) {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      style={{ flex: 1 }}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      <Text style={styles.titulo}>App Scholar</Text>
-      <Text style={styles.subtitulo}>Gestão Acadêmica</Text>
-
-      <TextInput
-        style={styles.input}
-        placeholder="E-mail"
-        placeholderTextColor="#999"
-        value={email}
-        onChangeText={setEmail}
-        keyboardType="email-address"
-        autoCapitalize="none"
-        editable={!loading}
-      />
-
-      <View style={styles.inputSenhaWrap}>
-      <TextInput
-        style={[styles.input, styles.inputSenha]}
-        placeholder="Senha"
-        placeholderTextColor="#999"
-        value={senha}
-        onChangeText={setSenha}
-        secureTextEntry={!mostrarSenha}
-        editable={!loading}
-      />
-      <TouchableOpacity
-        style={styles.olhoBtn}
-        onPress={() => setMostrarSenha(prev => !prev)}
+      <ScrollView
+        contentContainerStyle={styles.container}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
-        <Text>{mostrarSenha ? '👁️' : '👁️'}</Text>
-      </TouchableOpacity>
-    </View>
+        {/* Logo */}
+        <View style={styles.logoWrap}>
+          <Image
+            source={require("../../assets/icon.png")}
+            style={styles.logo}
+            resizeMode="contain"
+          />
+        </View>
 
-      {!!erro && <Text style={styles.erro}>{erro}</Text>}
+        <Text style={styles.titulo}>App Scholar</Text>
+        <Text style={styles.subtitulo}>Gestão Acadêmica</Text>
 
-      <TouchableOpacity
-        style={[styles.botao, loading && styles.botaoDesabilitado]}
-        onPress={handleLogin}
-        disabled={loading}
-      >
-        {loading
-          ? <ActivityIndicator color="#fff" />
-          : <Text style={styles.botaoTexto}>Entrar</Text>
-        }
-      </TouchableOpacity>
+        <TextInput
+          style={styles.input}
+          placeholder="E-mail"
+          placeholderTextColor="#999"
+          value={email}
+          onChangeText={setEmail}
+          keyboardType="email-address"
+          autoCapitalize="none"
+          editable={!loading}
+        />
+
+        <View style={styles.inputSenhaWrap}>
+          <TextInput
+            style={[styles.input, styles.inputSenha]}
+            placeholder="Senha"
+            placeholderTextColor="#999"
+            value={senha}
+            onChangeText={setSenha}
+            secureTextEntry={!mostrarSenha}
+            editable={!loading}
+          />
+          <TouchableOpacity
+            style={styles.olhoBtn}
+            onPress={() => setMostrarSenha((prev) => !prev)}
+          >
+            <Text>{mostrarSenha ? "🙈" : "👁️"}</Text>
+          </TouchableOpacity>
+        </View>
+
+        {!!erro && <Text style={styles.erro}>{erro}</Text>}
+
+        <TouchableOpacity
+          style={[styles.botao, loading && styles.botaoDesabilitado]}
+          onPress={handleLogin}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.botaoTexto}>Entrar</Text>
+          )}
+        </TouchableOpacity>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    justifyContent: 'center',
+    flexGrow: 1,
+    justifyContent: "center",
     paddingHorizontal: 32,
-    backgroundColor: '#f5f5f5',
+    paddingVertical: 40,
+    backgroundColor: "#f5f5f5",
+  },
+  logoWrap: {
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  logo: {
+    width: 140,
+    height: 140,
+    borderRadius: 28,
   },
   titulo: {
     fontSize: 32,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    color: '#1a1a2e',
+    fontWeight: "bold",
+    textAlign: "center",
+    color: "#1a1a2e",
     marginBottom: 4,
   },
   subtitulo: {
     fontSize: 14,
-    textAlign: 'center',
-    color: '#666',
+    textAlign: "center",
+    color: "#666",
     marginBottom: 40,
   },
   input: {
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: "#ddd",
     borderRadius: 8,
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 16,
     marginBottom: 16,
-    color: '#333',
+    color: "#333",
   },
-  erro: {
-    color: '#e74c3c',
-    fontSize: 13,
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  botao: {
-    backgroundColor: '#1a1a2e',
-    borderRadius: 8,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  botaoDesabilitado: {
-    backgroundColor: '#999',
-  },
-  botaoTexto: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-    inputSenhaWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
+  inputSenhaWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: "#ddd",
     borderRadius: 8,
     marginBottom: 16,
   },
@@ -156,5 +166,26 @@ const styles = StyleSheet.create({
   },
   olhoBtn: {
     paddingHorizontal: 12,
+  },
+  erro: {
+    color: "#e74c3c",
+    fontSize: 13,
+    marginBottom: 12,
+    textAlign: "center",
+  },
+  botao: {
+    backgroundColor: "#1a1a2e",
+    borderRadius: 8,
+    paddingVertical: 14,
+    alignItems: "center",
+    marginTop: 8,
+  },
+  botaoDesabilitado: {
+    backgroundColor: "#999",
+  },
+  botaoTexto: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "bold",
   },
 });

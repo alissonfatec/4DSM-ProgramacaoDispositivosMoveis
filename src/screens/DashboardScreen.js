@@ -102,8 +102,16 @@ export default function DashboardScreen({ navigation }) {
 
   const stats = [
     { label: "Alunos", value: totais.alunos, screen: "AlunosList" },
-    { label: "Professores", value: totais.professores },
-    { label: "Disciplinas", value: totais.disciplinas },
+    {
+      label: "Professores",
+      value: totais.professores,
+      screen: "ProfessoresList",
+    },
+    {
+      label: "Disciplinas",
+      value: totais.disciplinas,
+      screen: "DisciplinasList",
+    },
     { label: "Semestre", value: "2025/1" },
   ];
 
