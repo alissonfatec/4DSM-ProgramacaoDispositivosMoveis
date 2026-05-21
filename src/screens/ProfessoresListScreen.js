@@ -12,8 +12,10 @@ import { useFocusEffect } from "@react-navigation/native";
 import { professoresService } from "../services";
 import { colors, spacing, radius } from "../styles/theme";
 import { useFetch } from "../hooks/useFetch";
+import { useAuth } from "../hooks/useAuth";
 
 export default function ProfessoresListScreen({ navigation }) {
+  const { usuario } = useAuth();
   const {
     data: professores,
     loading,
@@ -78,13 +80,14 @@ export default function ProfessoresListScreen({ navigation }) {
             </View>
           )}
         />
-
-        <TouchableOpacity
-          style={styles.fab}
-          onPress={() => navigation.navigate("CadastroProfessores")}
-        >
-          <Text style={styles.fabTexto}>+ Novo Professor</Text>
-        </TouchableOpacity>
+        {usuario?.perfil === "admin" && (
+          <TouchableOpacity
+            style={styles.fab}
+            onPress={() => navigation.navigate("CadastroProfessores")}
+          >
+            <Text style={styles.fabTexto}>+ Novo Professor</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </SafeAreaView>
   );

@@ -12,8 +12,10 @@ import { useFocusEffect } from "@react-navigation/native";
 import { disciplinasService } from "../services";
 import { colors, spacing, radius } from "../styles/theme";
 import { useFetch } from "../hooks/useFetch";
+import { useAuth } from "../hooks/useAuth";
 
 export default function DisciplinasListScreen({ navigation }) {
+  const { usuario } = useAuth();
   const {
     data: disciplinas,
     loading,
@@ -76,13 +78,14 @@ export default function DisciplinasListScreen({ navigation }) {
             </View>
           )}
         />
-
-        <TouchableOpacity
-          style={styles.fab}
-          onPress={() => navigation.navigate("CadastroDisciplinas")}
-        >
-          <Text style={styles.fabTexto}>+ Nova Disciplina</Text>
-        </TouchableOpacity>
+        {usuario?.perfil === "admin" && (
+          <TouchableOpacity
+            style={styles.fab}
+            onPress={() => navigation.navigate("CadastroDisciplinas")}
+          >
+            <Text style={styles.fabTexto}>+ Nova Disciplina</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </SafeAreaView>
   );

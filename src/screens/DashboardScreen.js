@@ -8,7 +8,6 @@ import {
   TouchableOpacity,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useAppContext } from "../context/AppContext";
 import { useAuth } from "../hooks/useAuth";
 import { colors, spacing, radius } from "../styles/theme";
 import {
@@ -19,6 +18,16 @@ import {
 
 const NAV_ITEMS = [
   {
+    id: "boletim",
+    label: "Boletim",
+    sub: "Consultar notas",
+    icon: "📋",
+    color: "#FCEBEB",
+    iconColor: colors.danger,
+    screen: "Boletim",
+    roles: ["admin", "professor", "aluno"],
+  },
+  {
     id: "alunos",
     label: "Alunos",
     sub: "Cadastrar aluno",
@@ -26,6 +35,7 @@ const NAV_ITEMS = [
     color: colors.primaryLight,
     iconColor: colors.primary,
     screen: "CadastroAlunos",
+    roles: ["admin"],
   },
   {
     id: "professores",
@@ -35,6 +45,7 @@ const NAV_ITEMS = [
     color: "#EAF3DE",
     iconColor: colors.success,
     screen: "CadastroProfessores",
+    roles: ["admin"],
   },
   {
     id: "disciplinas",
@@ -44,15 +55,7 @@ const NAV_ITEMS = [
     color: "#FAEEDA",
     iconColor: colors.warning,
     screen: "CadastroDisciplinas",
-  },
-  {
-    id: "boletim",
-    label: "Boletim",
-    sub: "Consultar notas",
-    icon: "📋",
-    color: "#FCEBEB",
-    iconColor: colors.danger,
-    screen: "Boletim",
+    roles: ["admin"],
   },
 ];
 
@@ -74,10 +77,8 @@ export default function DashboardScreen({ navigation }) {
       year: "numeric",
     });
     setDataAtual(formatted.charAt(0).toUpperCase() + formatted.slice(1));
-    console.log("[DashboardScreen] Dashboard montado. Usuário:", usuario?.nome);
   }, []);
 
-  // 2. totais — roda toda vez que voltar para o Dashboard
   useFocusEffect(
     useCallback(() => {
       Promise.all([
@@ -87,18 +88,14 @@ export default function DashboardScreen({ navigation }) {
       ])
         .then(([a, p, d]) => {
           setTotais({
-            alunos: a.data.length,
-            professores: p.data.length,
-            disciplinas: d.data.length,
+            alunos: a.data?.length || 0,
+            professores: p.data?.length || 0,
+            disciplinas: d.data?.length || 0,
           });
         })
         .catch(() => {});
     }, []),
   );
-
-  function handleLogout() {
-    logout();
-  }
 
   const stats = [
     { label: "Alunos", value: totais.alunos, screen: "AlunosList" },
@@ -112,8 +109,20 @@ export default function DashboardScreen({ navigation }) {
       value: totais.disciplinas,
       screen: "DisciplinasList",
     },
-    { label: "Semestre", value: "2025/1" },
+    { label: "Semestre", value: "2025/1", screen: null },
   ];
+
+  const menuPermitido = NAV_ITEMS.filter((item) =>
+    item.roles.includes(usuario?.perfil),
+  );
+
+  // Tratando a saudação do Admin para não exibir "Olá, usuário" ou vazio
+  const nomeExibicao =
+    usuario?.perfil === "admin" ? "Administrador" : usuario?.nome || "Usuário";
+
+  // Pegando a matrícula com segurança (verifica refId ou id)
+  const matriculaExibicao =
+    usuario?.matricula || usuario?.refId || "Não localizada";
 
   return (
     <SafeAreaView style={styles.root} edges={["top"]}>
@@ -121,12 +130,17 @@ export default function DashboardScreen({ navigation }) {
         {/* Header */}
         <View style={styles.header}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.greeting}>
-              Olá, {usuario?.nome || "Administrador"}
-            </Text>
+            <Text style={styles.greeting}>Olá, {nomeExibicao}</Text>
             <Text style={styles.date}>{dataAtual}</Text>
+
+            {/* Exibe a matrícula apenas se for aluno e se ela existir */}
+            {usuario?.perfil === "aluno" && (
+              <Text style={styles.matriculaAviso}>
+                Sua Matrícula: {matriculaExibicao}
+              </Text>
+            )}
           </View>
-          <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
+          <TouchableOpacity style={styles.logoutBtn} onPress={logout}>
             <Text style={styles.logoutText}>Sair</Text>
           </TouchableOpacity>
         </View>
@@ -135,14 +149,13 @@ export default function DashboardScreen({ navigation }) {
           contentContainerStyle={styles.body}
           showsVerticalScrollIndicator={false}
         >
-          {/* Stats */}
           <View style={styles.statsGrid}>
             {stats.map((s) => (
               <TouchableOpacity
                 key={s.label}
                 style={styles.statCard}
-                onPress={() => s.screen && navigation.navigate(s.screen)}
                 activeOpacity={s.screen ? 0.7 : 1}
+                onPress={() => s.screen && navigation.navigate(s.screen)}
               >
                 <Text style={styles.statLabel}>{s.label}</Text>
                 <Text style={styles.statValue}>{s.value}</Text>
@@ -150,14 +163,18 @@ export default function DashboardScreen({ navigation }) {
             ))}
           </View>
 
-          {/* Nav */}
           <Text style={styles.sectionTitle}>Módulos do sistema</Text>
           <View style={styles.navGrid}>
-            {NAV_ITEMS.map((item) => (
+            {menuPermitido.map((item) => (
               <TouchableOpacity
                 key={item.id}
                 style={styles.navCard}
-                onPress={() => navigation.navigate(item.screen)}
+                // Se for a tela de boletim, já podemos passar a matrícula no parâmetro para a próxima tela ler!
+                onPress={() =>
+                  navigation.navigate(item.screen, {
+                    matriculaEstudante: matriculaExibicao,
+                  })
+                }
                 activeOpacity={0.8}
               >
                 <View
@@ -176,9 +193,10 @@ export default function DashboardScreen({ navigation }) {
   );
 }
 
+// ... Mantém seus mesmos styles abaixo ...
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.primary }, // ← azul na área do relógio
-  container: { flex: 1, backgroundColor: colors.background }, // ← fundo normal no resto
+  root: { flex: 1, backgroundColor: colors.primary },
+  container: { flex: 1, backgroundColor: colors.background },
   header: {
     backgroundColor: colors.primary,
     padding: spacing.xl,
@@ -188,6 +206,12 @@ const styles = StyleSheet.create({
   },
   greeting: { fontSize: 18, fontWeight: "600", color: colors.white },
   date: { fontSize: 12, color: "rgba(255,255,255,0.7)", marginTop: 2 },
+  matriculaAviso: {
+    fontSize: 13,
+    color: "#FFD700",
+    fontWeight: "bold",
+    marginTop: 6,
+  },
   logoutBtn: {
     backgroundColor: "rgba(255,255,255,0.15)",
     paddingHorizontal: 14,
