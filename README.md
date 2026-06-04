@@ -4,6 +4,8 @@
 **Professor:** André Olímpio  
 **Curso:** Desenvolvimento de Software Multiplataforma
 
+Vídeo Apresentação: [AppScholar - 4 DSM - Alisson Gritti](https://youtu.be/nWHcNLhBrJE)
+
 ---
 
 ## ⚙️ Versões utilizadas
