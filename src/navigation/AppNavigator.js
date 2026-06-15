@@ -1,8 +1,10 @@
 import React from "react";
 import { ActivityIndicator, View } from "react-native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { useAuth } from "../hooks/useAuth"; // ← troca aqui
+import { useAuth } from "../hooks/useAuth"; 
 import { colors } from "../styles/theme";
+
+// Importações originais
 import LoginScreen from "../screens/LoginScreen";
 import DashboardScreen from "../screens/DashboardScreen";
 import CadastroAlunosScreen from "../screens/CadastroAlunosScreen";
@@ -12,6 +14,10 @@ import BoletimScreen from "../screens/BoletimScreen";
 import ProfessoresListScreen from "../screens/ProfessoresListScreen";
 import DisciplinasListScreen from "../screens/DisciplinasListScreen";
 import AlunosListScreen from "../screens/AlunosListScreen";
+
+// 👇 NOSSAS DUAS TELAS NOVAS 👇
+import DisciplinasProfessorScreen from "../screens/DisciplinasProfessorScreen";
+import AlunosDisciplinaScreen from "../screens/AlunosDisciplinaScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -39,52 +45,41 @@ function PrivateStack() {
         component={DashboardScreen}
         options={{ headerShown: false }}
       />
-      <Stack.Screen
-        name="CadastroAlunos"
-        component={CadastroAlunosScreen}
-        options={{ title: "Cadastro de Alunos" }}
+      
+      {/* Telas de Admin */}
+      <Stack.Screen name="CadastroAlunos" component={CadastroAlunosScreen} options={{ title: "Cadastro de Alunos" }} />
+      <Stack.Screen name="CadastroProfessores" component={CadastroProfessoresScreen} options={{ title: "Cadastro de Professores" }} />
+      <Stack.Screen name="CadastroDisciplinas" component={CadastroDisciplinasScreen} options={{ title: "Cadastro de Disciplinas" }} />
+      <Stack.Screen name="AlunosList" component={AlunosListScreen} options={{ title: "Alunos Cadastrados" }} />
+      <Stack.Screen name="ProfessoresList" component={ProfessoresListScreen} options={{ title: "Professores Cadastrados" }} />
+      <Stack.Screen name="DisciplinasList" component={DisciplinasListScreen} options={{ title: "Disciplinas Cadastradas" }} />
+      
+      {/* Tela do Aluno */}
+      <Stack.Screen name="Boletim" component={BoletimScreen} options={{ title: "Boletim Acadêmico" }} />
+
+      {/* 👇 TELAS DO PROFESSOR (O MÓDULO DA PROVA) 👇 */}
+      <Stack.Screen 
+        name="DisciplinasProfessor" 
+        component={DisciplinasProfessorScreen} 
+        options={{ title: "Minhas Turmas" }} 
       />
-      <Stack.Screen
-        name="CadastroProfessores"
-        component={CadastroProfessoresScreen}
-        options={{ title: "Cadastro de Professores" }}
+      <Stack.Screen 
+        name="AlunosDisciplina" 
+        component={AlunosDisciplinaScreen} 
+        options={{ title: "Diário de Classe" }} 
       />
-      <Stack.Screen
-        name="CadastroDisciplinas"
-        component={CadastroDisciplinasScreen}
-        options={{ title: "Cadastro de Disciplinas" }}
-      />
-      <Stack.Screen
-        name="Boletim"
-        component={BoletimScreen}
-        options={{ title: "Boletim Acadêmico" }}
-      />
-      <Stack.Screen
-        name="AlunosList"
-        component={AlunosListScreen}
-        options={{ title: "Alunos Cadastrados" }}
-      />
-      <Stack.Screen
-        name="ProfessoresList"
-        component={ProfessoresListScreen}
-        options={{ title: "Professores Cadastrados" }}
-      />
-      <Stack.Screen
-        name="DisciplinasList"
-        component={DisciplinasListScreen}
-        options={{ title: "Disciplinas Cadastradas" }}
-      />
+      
     </Stack.Navigator>
   );
 }
 
 export default function AppNavigator() {
-  const { usuario, loading } = useAuth(); // ← troca aqui
+  const { usuario, loading } = useAuth(); 
 
   if (loading) {
     return (
       <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <ActivityIndicator size="large" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }

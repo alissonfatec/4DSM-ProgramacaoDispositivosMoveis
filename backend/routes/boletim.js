@@ -1,3 +1,5 @@
+// routes/boletim.js
+
 const express    = require('express');
 const controller = require('../controllers/boletimController');
 const auth       = require('../middleware/auth');

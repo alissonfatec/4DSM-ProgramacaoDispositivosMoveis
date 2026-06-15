@@ -30,16 +30,16 @@ async function login(req, res) {
 
     // 3. FK polimórfica: busca o nome e a matrícula na tabela correta
     let nome = "Usuário";
-    let matriculaReal = null; // <--- Variável nova pra guardar a matrícula!
+    let matriculaReal = null;
 
     if (usuario.perfil === "aluno") {
       const aluno = await pool.query(
-        "SELECT nome, matricula FROM alunos WHERE id = $1", // <-- Adicionei a coluna matricula aqui!
+        "SELECT nome, matricula FROM alunos WHERE id = $1",
         [usuario.referencia_id],
       );
       if (aluno.rows.length > 0) {
         nome = aluno.rows[0].nome;
-        matriculaReal = aluno.rows[0].matricula; // <-- Guardamos o 2024001 aqui
+        matriculaReal = aluno.rows[0].matricula;
       }
     } else if (usuario.perfil === "professor") {
       const prof = await pool.query(
@@ -57,7 +57,8 @@ async function login(req, res) {
       referencia_id: usuario.referencia_id,
     };
 
-    const token = jwt.sign(payload, process.env.JWT_SECRET, {
+    // Trocamos o process.env por uma string fixa temporária para a prova
+    const token = jwt.sign(payload, "chave_secreta_para_a_prova", {
       expiresIn: "8h",
     });
 

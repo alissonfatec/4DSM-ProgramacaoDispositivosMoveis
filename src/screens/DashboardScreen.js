@@ -25,7 +25,19 @@ const NAV_ITEMS = [
     color: "#FCEBEB",
     iconColor: colors.danger,
     screen: "Boletim",
-    roles: ["admin", "professor", "aluno"],
+    // 👇 Tiramos o professor daqui, agora é só aluno e admin
+    roles: ["admin", "aluno"], 
+  },
+  // 👇 NOVO MÓDULO DO PROFESSOR AQUI 👇
+  {
+    id: "diario",
+    label: "Minhas Turmas",
+    sub: "Diário de Classe",
+    icon: "📝",
+    color: "#EBF3FC",
+    iconColor: "#1A569B",
+    screen: "DisciplinasProfessor",
+    roles: ["professor"], // Exclusivo para o professor
   },
   {
     id: "alunos",
@@ -116,11 +128,9 @@ export default function DashboardScreen({ navigation }) {
     item.roles.includes(usuario?.perfil),
   );
 
-  // Tratando a saudação do Admin para não exibir "Olá, usuário" ou vazio
   const nomeExibicao =
     usuario?.perfil === "admin" ? "Administrador" : usuario?.nome || "Usuário";
 
-  // Pegando a matrícula com segurança (verifica refId ou id)
   const matriculaExibicao =
     usuario?.matricula || usuario?.refId || "Não localizada";
 
@@ -133,7 +143,6 @@ export default function DashboardScreen({ navigation }) {
             <Text style={styles.greeting}>Olá, {nomeExibicao}</Text>
             <Text style={styles.date}>{dataAtual}</Text>
 
-            {/* Exibe a matrícula apenas se for aluno e se ela existir */}
             {usuario?.perfil === "aluno" && (
               <Text style={styles.matriculaAviso}>
                 Sua Matrícula: {matriculaExibicao}
@@ -169,7 +178,6 @@ export default function DashboardScreen({ navigation }) {
               <TouchableOpacity
                 key={item.id}
                 style={styles.navCard}
-                // Se for a tela de boletim, já podemos passar a matrícula no parâmetro para a próxima tela ler!
                 onPress={() =>
                   navigation.navigate(item.screen, {
                     matriculaEstudante: matriculaExibicao,
@@ -193,7 +201,6 @@ export default function DashboardScreen({ navigation }) {
   );
 }
 
-// ... Mantém seus mesmos styles abaixo ...
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.primary },
   container: { flex: 1, backgroundColor: colors.background },

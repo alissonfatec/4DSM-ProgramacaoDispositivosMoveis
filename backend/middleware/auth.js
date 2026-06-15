@@ -8,11 +8,14 @@ function authenticateToken(req, res, next) {
     return res.status(401).json({ error: 'Token não fornecido' });
   }
 
-  jwt.verify(token, process.env.JWT_SECRET, (err, payload) => {
+  jwt.verify(token, 'chave_secreta_para_a_prova', (err, payload) => {
     if (err) {
       return res.status(403).json({ error: 'Token inválido ou expirado' });
     }
-    req.user = payload; // { id, email, perfil, referencia_id }
+    
+    req.user = payload;    // Mantém seus códigos antigos funcionando
+    req.usuario = payload; // Faz os códigos novos do professor funcionarem
+    
     next();
   });
 }
